@@ -339,6 +339,20 @@
             transform: scale(1.02);
         }
 
+        /* 🔒 LOCKED STATE untuk penerima */
+        .photo-frame.locked {
+            cursor: default;
+        }
+        
+        .photo-frame.locked:hover {
+            border-color: rgba(253,224,71,0.35);
+            box-shadow:
+                0 0 0 4px rgba(253,224,71,0.06),
+                0 0 30px rgba(253,224,71,0.12),
+                inset 0 1px 0 rgba(255,255,255,0.06);
+            transform: scale(1);
+        }
+
         /* Dekorasi sudut — aksen emas kecil di setiap pojok */
         .photo-frame::before,
         .photo-frame::after {
@@ -618,6 +632,7 @@
                         </div>
                         <input type="file" id="photoInput" accept="image/*">
                     </div>
+                    <p class="photo-upload-hint" id="uploadHint">Klik foto untuk mengganti</p>
                 </div>
 
                 <!-- 4. Divider -->
@@ -629,8 +644,8 @@
                     <div class="dot-bottom"></div>
                     <h2>Selamat Hari Raya Idul Fitri 1447H</h2>
                     <p>
-                        Semoga setiap maaf yang terucap membuka pintu kedamaian dan keberkahan.
-                        Mohon maaf lahir dan batin atas segala khilaf dan salah.
+                        Dalam beningnya hati ada keruh prasangka, dalam santunnya sapa ada cela kata.
+                        Taqabbalallahu Minna Wa Minkum. Mohon maaf lahir dan batin atas segala khilaf dan salah.
                     </p>
                 </div>
 
@@ -649,6 +664,9 @@
         const params = new URLSearchParams(window.location.search);
         const dari = params.get('dari');
         const kepada = params.get('kepada');
+        
+        // 🔒 Mode: creator (setup) atau recipient (shared link)
+        const isRecipientMode = dari && kepada;
 
         if (!dari && !kepada) {
             document.getElementById('setupModal').style.display = 'flex';
@@ -668,20 +686,52 @@
             window.location.href = url;
         });
 
-        // Klik foto frame → buka file picker (opsional untuk pengirim)
-        document.getElementById('photoFrame').addEventListener('click', function () {
-            document.getElementById('photoInput').click();
-        });
+        // 🔒 LOCK FOTO: Hanya creator yang bisa ganti foto, recipient tidak bisa
+        const photoFrame = document.getElementById('photoFrame');
+        const uploadHint = document.getElementById('uploadHint');
+        
+        if (isRecipientMode) {
+            // Mode penerima: DISABLE upload, ubah cursor
+            photoFrame.classList.add('locked');
+            photoFrame.style.cursor = 'default';
+            
+            // Hapus hint upload untuk penerima
+            if (uploadHint) uploadHint.remove();
+            
+            // Tambah tooltip bahwa foto locked
+            photoFrame.title = '📸 Foto dari pengirim';
+            
+            console.log('🔒 Mode Penerima: Upload foto disabled');
+        } else {
+            // Mode creator: ALLOW upload foto
+            photoFrame.addEventListener('click', function () {
+                document.getElementById('photoInput').click();
+            });
+            
+            photoFrame.title = 'Klik untuk ganti foto';
+            
+            console.log('✏️ Mode Creator: Upload foto enabled');
+        }
 
+        // Handle upload foto (hanya berfungsi di mode creator)
         document.getElementById('photoInput').addEventListener('change', function (e) {
+            if (isRecipientMode) {
+                console.warn('⚠️ Upload blocked - recipient mode');
+                return; // Extra protection
+            }
+            
             const file = e.target.files[0];
             if (!file) return;
+            
+            console.log('📤 Uploading photo:', file.name);
+            
             const reader = new FileReader();
             reader.onload = function (ev) {
                 const img = document.getElementById('photoImg');
                 img.src = ev.target.result;
                 img.classList.add('loaded');
                 document.getElementById('photoPlaceholder').classList.add('hidden');
+                console.log('✅ Photo uploaded successfully');
             };
             reader.readAsDataURL(file);
         });
